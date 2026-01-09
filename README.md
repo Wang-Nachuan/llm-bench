@@ -1,29 +1,30 @@
 # LLM Serving Benchmark Deployment
 
-1. Pull the docker image:
+## Important Files
+- `llm-bench/`: The source code.
+- `llm-bench/run.sh`: The script that container automatically executes when it is launched.
+- `llm-bench/run.py`: The main script that launches the benchmark.
+- `build_docker.sh`: Build the docker image and copy all source code in `llm-bench/` into it (need to be run whenever `llm-bench/` is updated).
+- `run_docker.sh`: Run the docker container.
+
+## Build and Run
+
+1. Clone the repository:
     ```bash
-    sudo docker pull nachuanwang/llm-bench:latest
+    git clone https://github.com/Wang-Nachuan/llm-bench.git llm-bench
+    cd llm-bench
     ```
 
-2. Run on A100 cluster (machine type: [a2-megagpu-16g](https://docs.cloud.google.com/compute/docs/accelerator-optimized-machines#a2-standard-vms)):
+2. Uncomment the desired configuration in `llm-bench/run.sh` for A100/H100.
+
+3. Build the docker image:
     ```bash
-    sudo docker run --rm -it --gpus all --ipc=host \
-        -e GPU_TYPE=a100 -e MODEL_SIZE=70b -e TP_SIZE=1 -e PP_SIZE=4 -e DP_SIZE=4 \
-        -v "$(pwd)/bench_out:/mnt/out" \
-        --entrypoint /bin/bash \
-        nachuanwang/llm-bench:latest \
-        /workspace/run.sh
+    ./build_docker.sh
     ```
 
-3. Run on H100 cluster (machine type: [a3-edgegpu-8g](https://docs.cloud.google.com/compute/docs/accelerator-optimized-machines#a3-edge-vms), ideally with 400 Gbps networking):
+3. Run the container:
     ```bash
-    sudo docker run --rm -it --gpus all --ipc=host \
-        -e GPU_TYPE=h100 -e MODEL_SIZE=70b -e TP_SIZE=1 -e PP_SIZE=4 -e DP_SIZE=2 \
-        -v "$(pwd)/bench_out:/mnt/out" \
-        --entrypoint /bin/bash \
-        nachuanwang/llm-bench:latest \
-        /workspace/run.sh
+    ./run_docker.sh
     ```
 
-
-4. The benchmark will start automatically and finishes in 3.5-4 hours. It may report some out-of-memory errors but it's fine. When complete, all results are saved to the ```bench_out/``` folder created in the location where the Docker command was executed. Please share the ```bench_out/``` folder with me, thanks!
+4. The benchmark will start automatically and finishes in 3.5-4 hours. It may somtimes report out-of-memory errors but it's fine. When complete, all results are saved to the `/workspace/bench_out` folder inside container (I currently map this folder to a external path `$(pwd)/bench_out` in `run_docker.sh` for convenience). Please share the `bench_out/` folder with me, thanks!
