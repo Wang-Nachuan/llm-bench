@@ -12,7 +12,7 @@ class ServerConfig:
     pp_size: int = 1
     dp_size: int = 1
     gpu_type: str = "a100"   # "a100" or "h100"
-    max_model_len: int = 16384
+    max_model_len: int = 4096
 
     @property
     def model_dir(self) -> str:
@@ -48,7 +48,7 @@ def default_orchestrator_config() -> OrchestratorConfig:
     pp_size = int(os.getenv("PP_SIZE", "1"))
     dp_size = int(os.getenv("DP_SIZE", "1"))
     gpu_type = os.getenv("GPU_TYPE", "a100").lower()
-    max_model_len = int(os.getenv("MAX_MODEL_LEN", "16384"))
+    max_model_len = int(os.getenv("MAX_MODEL_LEN", "4096"))
 
     base_url = f"http://127.0.0.1:{port}/v1"
     model_name = f"llama2-{model_size}"

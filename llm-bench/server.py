@@ -1,6 +1,8 @@
 # server.py
 import subprocess
 import sys
+import threading
+from pathlib import Path
 from typing import List
 
 from config import ServerConfig
@@ -27,4 +29,24 @@ def launch_server(cfg: ServerConfig) -> subprocess.Popen:
     cmd = build_server_cmd(cfg)
     print("Launching vLLM server with command:")
     print(" ".join(cmd))
-    return subprocess.Popen(cmd)
+    log_path = Path("/workspace/bench_out/vllm.log")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_f = open(log_path, "a", encoding="utf-8", buffering=1)
+
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
+
+    def _tee(src, dst):
+        for line in src:
+            log_f.write(line)
+            dst.write(line)
+            dst.flush()
+
+    threading.Thread(target=_tee, args=(proc.stdout, sys.stdout), daemon=True).start()
+    threading.Thread(target=_tee, args=(proc.stderr, sys.stderr), daemon=True).start()
+    return proc

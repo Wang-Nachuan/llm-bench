@@ -4,6 +4,7 @@ import sys
 import time
 from pathlib import Path
 import os
+import shutil
 from types import SimpleNamespace
 import logging
 import threading
@@ -192,12 +193,14 @@ def main():
     logging.info("Checking system configurations...")
     check_system(cfg)
 
-    logging.info("Launching vLLM server...")
-    server_proc = launch_server(cfg.server)
+    # Prepare a persistent 4K backup config so we can swap config.json per trace.
+    model_dir = Path(cfg.server.model_dir)
+    config_json = model_dir / "config.json"
+    config_4k = model_dir / "config_4k.json"
+    if not config_4k.exists():
+        shutil.copyfile(config_json, config_4k)
 
     try:
-        logging.info("Waiting for server to become ready...")
-        wait_for_server(cfg.client.base_url)
         logging.info(f"Running {len(traces)} trace(s) sequentially...")
 
         for idx, trace in enumerate(traces):
@@ -210,6 +213,18 @@ def main():
             logging.info(f"Start trace: {trace}")
             status = "ok"
             error_note = ""
+
+            # Select per-trace model config + max_model_len
+            is_reasoning = rel_name.startswith("reasoning")
+            cfg.server.max_model_len = 16384 if is_reasoning else 4096
+            chosen_cfg = model_dir / ("config_16k.json" if is_reasoning else "config_4k.json")
+            shutil.copyfile(chosen_cfg, config_json)
+
+            # Always restart server per trace to isolate performance and avoid CUDA state leakage.
+            server_proc = launch_server(cfg.server)
+            logging.info("Waiting for server to become ready...")
+            wait_for_server(cfg.client.base_url)
+
             # Start GPU power sampler
             ps = PowerSampler(sample_period_s=cfg.client.power_sample_period_s)
             ps.start()
@@ -238,33 +253,16 @@ def main():
             except Exception as e:
                 logging.info(f"Failed to write GPU power CSV: {e}")
             logging.info(f"End trace: {trace} status={status} {error_note}")
-
-            # If this trace errored and there are remaining traces, restart the server
-            if status == "error" and idx < len(traces) - 1:
-                logging.info("Restarting vLLM server before next trace due to previous error...")
-                try:
-                    server_proc.terminate()
-                    try:
-                        server_proc.wait(timeout=30)
-                    except subprocess.TimeoutExpired:
-                        logging.warning("Server did not exit in time; killing.")
-                        server_proc.kill()
-                except Exception as e:
-                    logging.warning(f"Issue during server termination: {e}")
-                # Relaunch and wait for readiness
-                server_proc = launch_server(cfg.server)
-                logging.info("Waiting for server to become ready after restart...")
-                wait_for_server(cfg.client.base_url)
+            # Stop server after each trace (always)
+            server_proc.terminate()
+            try:
+                server_proc.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                logging.warning("Server did not exit in time; killing.")
+                server_proc.kill()
 
         logging.info("All traces completed.")
     finally:
-        logging.info("Shutting down server...")
-        server_proc.terminate()
-        try:
-            server_proc.wait(timeout=30)
-        except subprocess.TimeoutExpired:
-            logging.warning("Server did not exit in time; killing.")
-            server_proc.kill()
         # Ensure log file is flushed
         logging.shutdown()
 
