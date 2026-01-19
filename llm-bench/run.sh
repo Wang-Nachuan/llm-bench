@@ -14,6 +14,10 @@ export VLLM_ALLOW_LONG_MAX_MODEL_LEN=1
 export POWER_SAMPLE_PERIOD_S=1.0
 export POWER_AGG_PERIOD_S=10.0
 
+# Debugging
+export VLLM_LOGGING_LEVEL=INFO
+export VLLM_LOG_STATS_INTERVAL=10
+
 # ===== Select one configuration =====
 
 # --- TEST MODE ---

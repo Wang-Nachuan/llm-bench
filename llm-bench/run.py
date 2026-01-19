@@ -207,6 +207,7 @@ def main():
             rel_name = trace.stem  # filename without extension
             out_dir = results_root / rel_name
             out_dir.mkdir(parents=True, exist_ok=True)
+            os.environ["VLLM_LOG_FILE"] = str(out_dir / "vllm.log")
             ns_cfg = SimpleNamespace(queries_path=str(trace),
                                      base_url=cfg.client.base_url,
                                      model_name=cfg.client.model_name)

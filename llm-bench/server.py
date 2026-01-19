@@ -1,4 +1,5 @@
 # server.py
+import os
 import subprocess
 import sys
 import threading
@@ -29,7 +30,7 @@ def launch_server(cfg: ServerConfig) -> subprocess.Popen:
     cmd = build_server_cmd(cfg)
     print("Launching vLLM server with command:")
     print(" ".join(cmd))
-    log_path = Path("/workspace/bench_out/vllm.log")
+    log_path = Path(os.getenv("VLLM_LOG_FILE", "/workspace/bench_out/vllm.log"))
     log_path.parent.mkdir(parents=True, exist_ok=True)
     log_f = open(log_path, "a", encoding="utf-8", buffering=1)
 
@@ -49,4 +50,5 @@ def launch_server(cfg: ServerConfig) -> subprocess.Popen:
 
     threading.Thread(target=_tee, args=(proc.stdout, sys.stdout), daemon=True).start()
     threading.Thread(target=_tee, args=(proc.stderr, sys.stderr), daemon=True).start()
+    threading.Thread(target=lambda: (proc.wait(), log_f.close()), daemon=True).start()
     return proc
