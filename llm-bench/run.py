@@ -19,9 +19,15 @@ try:
 except Exception:
     torch = None
 
-def wait_for_server(base_url: str, timeout_s: float = 120.0) -> None:
-    start = time.monotonic()
+def wait_for_server(base_url: str, server_proc: subprocess.Popen) -> None:
+    """Block until /v1/models is reachable, or raise if the server process exits."""
     while True:
+        # If the server process died, fail fast with a useful error.
+        rc = server_proc.poll()
+        if rc is not None:
+            raise RuntimeError(
+                f"vLLM server exited during startup (exit_code={rc}). "
+            )
         try:
             resp = httpx.get(f"{base_url}/models", timeout=2.0)
             if resp.status_code == 200:
@@ -29,9 +35,6 @@ def wait_for_server(base_url: str, timeout_s: float = 120.0) -> None:
                 return
         except Exception:
             pass
-
-        if time.monotonic() - start > timeout_s:
-            raise RuntimeError(f"Server not ready after {timeout_s} seconds")
         time.sleep(2.0)
 
 
@@ -224,7 +227,7 @@ def main():
             # Always restart server per trace to isolate performance and avoid CUDA state leakage.
             server_proc = launch_server(cfg.server)
             logging.info("Waiting for server to become ready...")
-            wait_for_server(cfg.client.base_url)
+            wait_for_server(cfg.client.base_url, server_proc)
 
             # Start GPU power sampler
             ps = PowerSampler(sample_period_s=cfg.client.power_sample_period_s)
