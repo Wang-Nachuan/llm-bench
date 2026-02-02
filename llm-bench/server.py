@@ -23,6 +23,9 @@ def build_server_cmd(cfg: ServerConfig) -> List[str]:
         "--port", str(cfg.port),
         "--disable-log-requests",          # reduce logging overhead
         "--no-enable-prefix-caching",
+        "--max-num-batched-tokens", str(cfg.max_num_batched_tokens),
+        "--max-num-seqs", str(cfg.max_num_seqs),
+        "--gpu-memory-utilization", str(cfg.gpu_memory_utilization),
     ]
     return cmd
 

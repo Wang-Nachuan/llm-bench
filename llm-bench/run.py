@@ -177,13 +177,16 @@ def main():
     # Capture GPU topology/status early into a clean text file.
     write_gpu_topo(results_root)
 
-    # Resolve trace search root (default: queries/<gpu_type>/, test mode: queries/test/)
+    # Resolve trace search root (default: queries/dev_<TP*PP*DP>/, test mode: queries/test/)
     base_path = Path(cfg.client.queries_path)
     if os.getenv("TEST_MODE", "0") == "1":
         search_root = base_path / "test"
         logging.info("TEST_MODE=1: using traces under queries/test/")
     else:
-        search_root = base_path / cfg.server.gpu_type
+        world = cfg.server.tp_size * cfg.server.pp_size * cfg.server.dp_size
+        if world not in (8, 16):
+            raise RuntimeError(f"Unsupported device count (TP*PP*DP)={world}; expected 8 or 16.")
+        search_root = base_path / f"dev_{world}"
     logging.info(f"Searching traces under: {search_root}")
 
     traces = discover_traces(search_root)
@@ -220,7 +223,7 @@ def main():
 
             # Select per-trace model config + max_model_len
             is_reasoning = rel_name.startswith("reasoning")
-            cfg.server.max_model_len = 16384 if is_reasoning else 4096
+            cfg.server.max_model_len = 16384 + 2048 if is_reasoning else 4096
             chosen_cfg = model_dir / ("config_16k.json" if is_reasoning else "config_4k.json")
             shutil.copyfile(chosen_cfg, config_json)
 

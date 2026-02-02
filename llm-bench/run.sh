@@ -28,7 +28,7 @@ export VLLM_LOG_STATS_INTERVAL=10
 # export PP_SIZE=1
 # export DP_SIZE=1
 
-# --- H100 ---
+# --- 8 x H100 ---
 # export TEST_MODE=0
 # export GPU_TYPE=h100
 # export MODEL_SIZE=70b
@@ -36,13 +36,21 @@ export VLLM_LOG_STATS_INTERVAL=10
 # export PP_SIZE=4
 # export DP_SIZE=2
 
-# --- A100 ---
+# --- 16 x A100 ---
 export TEST_MODE=0
 export GPU_TYPE=a100
 export MODEL_SIZE=70b
 export TP_SIZE=1
 export PP_SIZE=4
 export DP_SIZE=4
+
+# --- 8 x A100 ---
+# export TEST_MODE=0
+# export GPU_TYPE=a100
+# export MODEL_SIZE=70b
+# export TP_SIZE=1
+# export PP_SIZE=4
+# export DP_SIZE=2
 
 # ====================================
 
