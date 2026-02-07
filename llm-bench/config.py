@@ -16,8 +16,8 @@ class ServerConfig:
 
     # Predefined values
     max_num_batched_tokens: int = 16384     # Maximun tokens for chunked prefill
-    max_num_seqs: int = 256                 # Maximun tokens for continuous batching
-    gpu_memory_utilization: float = 0.95
+    max_num_seqs: int = 128                 # Maximun tokens for continuous batching
+    gpu_memory_utilization: float = 0.93
 
     @property
     def model_dir(self) -> str:
