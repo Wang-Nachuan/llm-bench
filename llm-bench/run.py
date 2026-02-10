@@ -19,23 +19,82 @@ try:
 except Exception:
     torch = None
 
-def wait_for_server(base_url: str, server_proc: subprocess.Popen) -> None:
-    """Block until /v1/models is reachable, or raise if the server process exits."""
+def terminate_process(proc: subprocess.Popen, name: str = "process") -> None:
+    """Best-effort terminate, then kill, without raising."""
+    try:
+        proc.terminate()
+    except Exception:
+        return
+    try:
+        proc.wait(timeout=30)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+
+def wait_for_server(base_url: str,
+                    server_proc: subprocess.Popen,
+                    timeout_s: float = 600.0) -> None:
+    """Block until /v1/models is reachable, or raise if server exits or times out."""
+    start = time.monotonic()
     while True:
         # If the server process died, fail fast with a useful error.
         rc = server_proc.poll()
         if rc is not None:
-            raise RuntimeError(
-                f"vLLM server exited during startup (exit_code={rc}). "
-            )
+            raise RuntimeError(f"vLLM server exited during startup (exit_code={rc}).")
+
+        if time.monotonic() - start > timeout_s:
+            terminate_process(server_proc, name="vLLM server")
+            raise RuntimeError(f"vLLM server not ready after {timeout_s:.0f}s; terminated.")
+
         try:
             resp = httpx.get(f"{base_url}/models", timeout=2.0)
-            if resp.status_code == 200:
-                logging.info("Server is ready.")
-                return
         except Exception:
-            pass
+            time.sleep(2.0)
+            continue
+
+        if resp.status_code == 200:
+            logging.info("Server is ready.")
+            return
         time.sleep(2.0)
+
+
+def launch_server_with_auto_mem(cfg, base_url: str) -> subprocess.Popen:
+    """Launch vLLM server; if it exits during startup, decrement gpu_memory_utilization and retry.
+
+    The updated gpu_memory_utilization is persisted back into cfg.server and applies to
+    all subsequent traces.
+    """
+    util = float(cfg.server.gpu_memory_utilization)
+    attempt = 0
+    while True:
+        cfg.server.gpu_memory_utilization = util
+        logging.info(f"Launching vLLM server (gpu_memory_utilization={util:.2f})")
+        proc = launch_server(cfg.server)
+        try:
+            wait_for_server(base_url, proc)
+            return proc
+        except Exception as e:
+            logging.info(f"vLLM server failed to initialize: {e}")
+            # Preserve the current per-trace log and start fresh on retry.
+            log_path_str = os.getenv("VLLM_LOG_FILE", "")
+            if log_path_str:
+                log_path = Path(log_path_str)
+                renamed = log_path.with_name(
+                    f"{log_path.stem}_init_fail_{attempt}{log_path.suffix}"
+                )
+                attempt += 1
+                try:
+                    log_path.rename(renamed)
+                except FileNotFoundError:
+                    pass
+            terminate_process(proc, name="vLLM server")
+
+            util = round(util - 0.01, 3)
+            if util <= 0:
+                raise RuntimeError("gpu_memory_utilization fell to <= 0 while retrying server init.")
 
 
 def discover_traces(root: Path) -> list[Path]:
@@ -228,9 +287,7 @@ def main():
             shutil.copyfile(chosen_cfg, config_json)
 
             # Always restart server per trace to isolate performance and avoid CUDA state leakage.
-            server_proc = launch_server(cfg.server)
-            logging.info("Waiting for server to become ready...")
-            wait_for_server(cfg.client.base_url, server_proc)
+            server_proc = launch_server_with_auto_mem(cfg, cfg.client.base_url)
 
             # Start GPU power sampler
             ps = PowerSampler(sample_period_s=cfg.client.power_sample_period_s)
@@ -261,12 +318,7 @@ def main():
                 logging.info(f"Failed to write GPU power CSV: {e}")
             logging.info(f"End trace: {trace} status={status} {error_note}")
             # Stop server after each trace (always)
-            server_proc.terminate()
-            try:
-                server_proc.wait(timeout=30)
-            except subprocess.TimeoutExpired:
-                logging.warning("Server did not exit in time; killing.")
-                server_proc.kill()
+            terminate_process(server_proc, name="vLLM server")
 
         logging.info("All traces completed.")
     finally:
