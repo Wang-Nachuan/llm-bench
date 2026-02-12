@@ -15,8 +15,8 @@ class ServerConfig:
     max_model_len: int = 4096
 
     # Predefined values
-    max_num_batched_tokens: int = 16384     # Maximun tokens for chunked prefill
-    max_num_seqs: int = 128                 # Maximun tokens for continuous batching
+    max_num_batched_tokens: int = 8192      # Maximun tokens for chunked prefill
+    max_num_seqs: int = 64                  # Maximun tokens for continuous batching
     gpu_memory_utilization: float = 0.92
 
     @property
