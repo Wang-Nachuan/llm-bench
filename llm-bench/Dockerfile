@@ -19,6 +19,7 @@ COPY queries /workspace/queries
 # Copy scripts and example queries
 COPY server.py /workspace/server.py
 COPY client.py /workspace/client.py
+COPY cdf.py /workspace/cdf.py
 COPY run.py /workspace/run.py
 COPY config.py /workspace/config.py
 COPY run.sh /workspace/run.sh

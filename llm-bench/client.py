@@ -11,6 +11,7 @@ import httpx
 import logging
 from transformers import AutoTokenizer
 from config import ClientConfig
+from cdf import write_cdf_csv
 
 
 @dataclass
@@ -340,18 +341,6 @@ def _percentiles(values: List[float]) -> Dict[str, float]:
         return s[idx]
     return {"p50": pct(0.50), "p90": pct(0.90), "p99": pct(0.99)}
 
-def _write_cdf_csv(values: List[float], out_csv: Path) -> None:
-    out_csv.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_csv, "w", encoding="utf-8") as f:
-        f.write("percentile,value_s\n")
-        if not values:
-            for p in range(0, 101):
-                f.write(f"{p},\n")
-            return
-        s = sorted(values)
-        for p in range(0, 101):
-            idx = int(p / 100 * (len(s) - 1))
-            f.write(f"{p},{s[idx]:.9f}\n")
 
 def run_trace_collect_and_write(cfg: ClientConfig, out_dir: Path) -> Dict[str, Any]:
     # Run one trace and write CDFs + summary to out_dir
@@ -362,9 +351,9 @@ def run_trace_collect_and_write(cfg: ClientConfig, out_dir: Path) -> Dict[str, A
     )
     metrics = asyncio.run(run_benchmark(ns))
     # Write CDF CSVs
-    _write_cdf_csv(metrics["ttfts"], out_dir / "cdf_ttft.csv")
-    _write_cdf_csv(metrics["tpot_samples"], out_dir / "cdf_tpot.csv")
-    _write_cdf_csv(metrics["e2es"], out_dir / "cdf_e2e.csv")
+    write_cdf_csv(metrics["ttfts"], out_dir / "cdf_ttft.csv", kind="percentile")
+    write_cdf_csv(metrics["tpot_samples"], out_dir / "cdf_tpot.csv", kind="percentile")
+    write_cdf_csv(metrics["e2es"], out_dir / "cdf_e2e.csv", kind="percentile")
     # Summary JSON
     summary = {
         "ttft": _percentiles(metrics["ttfts"]),

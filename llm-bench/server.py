@@ -8,12 +8,13 @@ from typing import List
 
 from config import ServerConfig
 
-def build_server_cmd(cfg: ServerConfig) -> List[str]:
+def build_server_cmd(cfg: ServerConfig, *, extra_args: List[str] | None = None) -> List[str]:
     cmd = [
         sys.executable, "-m", "vllm.entrypoints.openai.api_server",
         "--model", cfg.model_dir,
         "--served-model-name", cfg.served_model_name,
         "--dtype", "float16",
+        "--kv-cache-dtype", "auto",
         "--load-format", "dummy",          # random FP16 weights, no stored checkpoints
         "--max-model-len", str(cfg.max_model_len),
         "--tensor-parallel-size", str(cfg.tp_size),
@@ -27,10 +28,12 @@ def build_server_cmd(cfg: ServerConfig) -> List[str]:
         "--max-num-seqs", str(cfg.max_num_seqs),
         "--gpu-memory-utilization", str(cfg.gpu_memory_utilization),
     ]
+    if extra_args:
+        cmd.extend(extra_args)
     return cmd
 
-def launch_server(cfg: ServerConfig) -> subprocess.Popen:
-    cmd = build_server_cmd(cfg)
+def launch_server(cfg: ServerConfig, *, extra_args: List[str] | None = None) -> subprocess.Popen:
+    cmd = build_server_cmd(cfg, extra_args=extra_args)
     print("Launching vLLM server with command:")
     print(" ".join(cmd))
     log_path = Path(os.getenv("VLLM_LOG_FILE", "/workspace/bench_out/vllm.log"))
