@@ -15,16 +15,18 @@ class ServerConfig:
     max_model_len: int = 4096
 
     # Predefined values
-    max_num_batched_tokens: int = 16384     # Maximun tokens for chunked prefill
-    max_num_seqs: int = 128                 # Maximun tokens for continuous batching
+    max_num_batched_tokens: int = 256       # Maximun tokens for chunked prefill
+    max_num_seqs: int = 64                  # Maximun tokens for continuous batching
     gpu_memory_utilization: float = 0.90
+    
     power_sample_period_s: float = 1.0
     batch_sample_period_s: float = 1.0
     power_agg_period_s: float = 10.0
 
     @property
     def model_dir(self) -> str:
-        return f"/opt/models/llama2-{self.model_size}"
+        root_dir = os.getenv("ROOT_DIR", "/workspace")
+        return f"{root_dir}/models/llama2-{self.model_size}"
 
     @property
     def served_model_name(self) -> str:

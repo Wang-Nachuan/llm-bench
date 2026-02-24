@@ -12,8 +12,8 @@ ENV HF_HUB_OFFLINE=1 \
 RUN pip install --no-cache-dir "httpx>=0.27"
 
 # Copy model configs (downloaded locally beforehand)
-COPY models/llama2-7b /opt/models/llama2-7b
-COPY models/llama2-70b /opt/models/llama2-70b
+COPY models/llama2-7b /workspace/models/llama2-7b
+COPY models/llama2-70b /workspace/models/llama2-70b
 COPY queries /workspace/queries
 
 # Copy scripts and example queries

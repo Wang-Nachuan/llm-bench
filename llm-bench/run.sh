@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export ROOT_DIR="/workspace"
+
 # Output directory inside the container (user can copy it out later).
-export RESULTS_ROOT="/workspace/bench_out"
+export RESULTS_ROOT="${ROOT_DIR}/bench_out"
 mkdir -p "${RESULTS_ROOT}"
 
-export QUERIES_PATH="/workspace/queries"
+export QUERIES_PATH="${ROOT_DIR}/queries"
 
 # vLLM long context guardrails (existing behavior)
 export VLLM_ALLOW_LONG_MAX_MODEL_LEN=1
@@ -14,4 +16,4 @@ export VLLM_ALLOW_LONG_MAX_MODEL_LEN=1
 export VLLM_LOGGING_LEVEL=INFO
 export VLLM_LOG_STATS_INTERVAL=10
 
-python3 /workspace/run.py
+python3 ${ROOT_DIR}/run.py

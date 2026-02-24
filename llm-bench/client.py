@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+import os
 import time
 from dataclasses import dataclass
 from typing import List, Dict, Any
@@ -61,7 +62,8 @@ def _get_tokenizer_for_model_name(model_name: str) -> AutoTokenizer:
     tok = _TOKENIZER_CACHE.get(model_name)
     if tok is not None:
         return tok
-    model_dir = f"/opt/models/{model_name}"
+    root_dir = os.getenv("ROOT_DIR", "/workspace")
+    model_dir = f"{root_dir}/models/{model_name}"
     tok = AutoTokenizer.from_pretrained(
         model_dir,
         use_fast=True,
