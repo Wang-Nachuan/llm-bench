@@ -83,6 +83,30 @@ def bench_run_configs() -> list[BenchRunConfig]:
         #     extra_server_args=["--quantization", "fp8"],
         # ),
 
+        # Test on 4 GPU
+        # BenchRunConfig(
+        #     name="test_dev_4_w16a16",
+        #     trace_folder="test_dev_4",
+        #     server_overrides={
+        #         "model_size": "70b",
+        #         "tp_size": 1,
+        #         "pp_size": 4,
+        #         "dp_size": 1,
+        #     },
+        #     extra_server_args=[],
+        # ),
+        # BenchRunConfig(
+        #     name="test_dev_4_w8a16",
+        #     trace_folder="test_dev_4",
+        #     server_overrides={
+        #         "model_size": "70b",
+        #         "tp_size": 1,
+        #         "pp_size": 4,
+        #         "dp_size": 1,
+        #     },
+        #     extra_server_args=["--quantization", "fp8"],
+        # ),
+
         # Test on 8 GPUs
         # BenchRunConfig(
         #     name="test_dev_8_w16a16",

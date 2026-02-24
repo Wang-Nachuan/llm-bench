@@ -263,8 +263,14 @@ def main():
 
                 # Select per-trace model config + max_model_len
                 is_reasoning = rel_name.startswith("reasoning")
-                cfg.server.max_model_len = 16384 + 2048 if is_reasoning else 4096
-                chosen_cfg = model_dir / ("config_16k.json" if is_reasoning else "config_4k.json")
+                if is_reasoning:
+                    cfg.server.max_model_len = 16384 + 2048
+                    cfg.server.max_num_batched_tokens = 65536
+                    cfg.server.max_num_seqs = 256
+                    chosen_cfg = model_dir / "config_16k.json"
+                else:
+                    cfg.server.max_model_len = 4096
+                    chosen_cfg = model_dir / "config_4k.json"
                 shutil.copyfile(chosen_cfg, config_json)
 
                 # Always restart server per trace to isolate performance and avoid CUDA state leakage.
