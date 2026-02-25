@@ -27,7 +27,6 @@ def build_server_cmd(cfg: ServerConfig, *, extra_args: List[str] | None = None) 
         "--max-num-batched-tokens", str(cfg.max_num_batched_tokens),
         "--max-num-seqs", str(cfg.max_num_seqs),
         "--gpu-memory-utilization", str(cfg.gpu_memory_utilization),
-        "--no-enable-chunked-prefill",
     ]
     if extra_args:
         cmd.extend(extra_args)

@@ -267,6 +267,7 @@ def main():
                     cfg.server.max_model_len = 16384 + 2048
                     cfg.server.max_num_batched_tokens = 65536
                     cfg.server.max_num_seqs = 256
+                    cfg.server.extra_server_args += ["--no-enable-chunked-prefill"]
                     chosen_cfg = model_dir / "config_16k.json"
                 else:
                     cfg.server.max_model_len = 4096
