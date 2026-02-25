@@ -262,12 +262,13 @@ def main():
                 error_note = ""
 
                 # Select per-trace model config + max_model_len
+                extra_server_args = list(bench.extra_server_args)
                 is_reasoning = rel_name.startswith("reasoning")
                 if is_reasoning:
                     cfg.server.max_model_len = 16384 + 2048
                     cfg.server.max_num_batched_tokens = 65536
                     cfg.server.max_num_seqs = 256
-                    cfg.server.extra_server_args += ["--no-enable-chunked-prefill"]
+                    extra_server_args += ["--no-enable-chunked-prefill"]
                     chosen_cfg = model_dir / "config_16k.json"
                 else:
                     cfg.server.max_model_len = 4096
@@ -275,7 +276,7 @@ def main():
                 shutil.copyfile(chosen_cfg, config_json)
 
                 # Always restart server per trace to isolate performance and avoid CUDA state leakage.
-                server_proc = launch_server(cfg.server, extra_args=bench.extra_server_args)
+                server_proc = launch_server(cfg.server, extra_args=extra_server_args)
                 logging.info("Waiting for server to become ready...")
                 wait_for_server(cfg.client.base_url, server_proc)
 

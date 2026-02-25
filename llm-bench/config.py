@@ -47,7 +47,7 @@ class OrchestratorConfig:
     client: ClientConfig
 
 
-@dataclass(frozen=True)
+@dataclass()
 class BenchRunConfig:
     """One benchmark configuration to run (outer loop in run.py)."""
     name: str
