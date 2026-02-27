@@ -266,7 +266,7 @@ def main():
                 is_reasoning = rel_name.startswith("reasoning")
                 if is_reasoning:
                     cfg.server.max_model_len = 16384 + 2048
-                    cfg.server.max_num_batched_tokens = 4096
+                    cfg.server.max_num_batched_tokens = 3072
                     cfg.server.max_num_seqs = 128
                     # extra_server_args += ["--no-enable-chunked-prefill"]
                     chosen_cfg = model_dir / "config_16k.json"
