@@ -9,7 +9,7 @@ ENV HF_HUB_OFFLINE=1 \
     VLLM_NO_USAGE_STATS=1
 
 # Install a tiny HTTP client lib for the benchmark script
-RUN pip install --no-cache-dir "httpx>=0.27"
+# RUN pip install --no-cache-dir "httpx>=0.27"
 
 # Copy model configs (downloaded locally beforehand)
 COPY models/llama2-7b /workspace/models/llama2-7b
@@ -23,7 +23,7 @@ COPY cdf.py /workspace/cdf.py
 COPY run.py /workspace/run.py
 COPY config.py /workspace/config.py
 COPY run.sh /workspace/run.sh
-RUN chmod +x /workspace/run.sh
+# RUN chmod +x /workspace/run.sh
 
 # Default command: start vLLM server
 ENTRYPOINT ["/workspace/run.sh"]

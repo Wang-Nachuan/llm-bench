@@ -23,6 +23,11 @@ class ServerConfig:
     batch_sample_period_s: float = 1.0
     power_agg_period_s: float = 10.0
 
+    # Average power window in seconds (relative to TelemetrySampler start time).
+    # If power_avg_end_s < 0, use the last sampled timestamp.
+    power_avg_start_s: float = 60.0
+    power_avg_end_s: float = 600.0
+
     @property
     def model_dir(self) -> str:
         root_dir = os.getenv("ROOT_DIR", "/workspace")
@@ -68,6 +73,8 @@ def bench_run_configs() -> list[BenchRunConfig]:
         #         "tp_size": 1,
         #         "pp_size": 1,
         #         "dp_size": 1,
+        #         "power_avg_start_s": 0.0,
+        #         "power_avg_end_s": 20.0,
         #     },
         #     extra_server_args=[],
         # ),
@@ -79,6 +86,8 @@ def bench_run_configs() -> list[BenchRunConfig]:
         #         "tp_size": 1,
         #         "pp_size": 1,
         #         "dp_size": 1,
+        #         "power_avg_start_s": 0.0,
+        #         "power_avg_end_s": 20.0,
         #     },
         #     extra_server_args=["--quantization", "fp8"],
         # ),
@@ -164,6 +173,8 @@ def bench_run_configs() -> list[BenchRunConfig]:
                 "tp_size": 1,
                 "pp_size": 4,
                 "dp_size": 2,
+                "power_avg_start_s": 60.0,
+                "power_avg_end_s": 600.0,
             },
             extra_server_args=[],
         ),
@@ -175,6 +186,8 @@ def bench_run_configs() -> list[BenchRunConfig]:
                 "tp_size": 1,
                 "pp_size": 4,
                 "dp_size": 2,
+                "power_avg_start_s": 60.0,
+                "power_avg_end_s": 600.0,
             },
             extra_server_args=["--quantization", "fp8"],
         ),
@@ -186,6 +199,8 @@ def bench_run_configs() -> list[BenchRunConfig]:
                 "tp_size": 1,
                 "pp_size": 4,
                 "dp_size": 1,
+                "power_avg_start_s": 180.0,
+                "power_avg_end_s": 900.0,
             },
             extra_server_args=[],
         ),
@@ -197,6 +212,8 @@ def bench_run_configs() -> list[BenchRunConfig]:
                 "tp_size": 1,
                 "pp_size": 4,
                 "dp_size": 1,
+                "power_avg_start_s": 180.0,
+                "power_avg_end_s": 900.0,
             },
             extra_server_args=["--quantization", "fp8"],
         ),

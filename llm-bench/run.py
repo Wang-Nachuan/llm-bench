@@ -20,23 +20,83 @@ try:
 except Exception:
     torch = None
 
+
+def _compute_avg_power_w(
+    samples: dict,
+    *,
+    start_s: float,
+    end_s: float,
+) -> float | None:
+    if not samples:
+        return None
+    # Determine effective end time.
+    max_t = 0.0
+    for vals in samples.values():
+        if vals:
+            max_t = max(max_t, vals[-1][0])
+    if max_t <= 0:
+        return None
+    eff_end = max_t if end_s < 0 else end_s
+    eff_start = start_s
+    if eff_end < eff_start:
+        eff_start, eff_end = eff_end, eff_start
+
+    vals_all: list[float] = []
+    for _, vals in samples.items():
+        for (t, v) in vals:
+            if t >= eff_start and t <= eff_end:
+                vals_all.append(float(v))
+    if not vals_all:
+        return None
+    return sum(vals_all) / len(vals_all)
+
+
+def _format_table(title: str, header: list[str], rows: list[list[str]]) -> str:
+    # Simple aligned ASCII table, good for terminal viewing.
+    cols = len(header)
+    widths = [len(h) for h in header]
+    for r in rows:
+        for i in range(cols):
+            widths[i] = max(widths[i], len(r[i]))
+
+    def fmt_row(r: list[str]) -> str:
+        out = []
+        for i, cell in enumerate(r):
+            if i == 0:
+                out.append(cell.ljust(widths[i]))
+            else:
+                out.append(cell.rjust(widths[i]))
+        return "  ".join(out)
+
+    lines = []
+    lines.append(title)
+    lines.append(fmt_row(header))
+    lines.append("  ".join(("-" * w) for w in widths))
+    for r in rows:
+        lines.append(fmt_row(r))
+    return "\n".join(lines) + "\n"
+
 def wait_for_server(base_url: str, server_proc: subprocess.Popen) -> None:
     """Block until /v1/models is reachable, or raise if the server process exits."""
-    while True:
-        # If the server process died, fail fast with a useful error.
-        rc = server_proc.poll()
-        if rc is not None:
-            raise RuntimeError(
-                f"vLLM server exited during startup (exit_code={rc}). "
-            )
-        try:
-            resp = httpx.get(f"{base_url}/models", timeout=2.0)
-            if resp.status_code == 200:
-                logging.info("Server is ready.")
-                return
-        except Exception:
-            pass
-        time.sleep(2.0)
+    with httpx.Client(timeout=2.0, trust_env=False) as client:
+        while True:
+            rc = server_proc.poll()
+            if rc is not None:
+                raise RuntimeError(
+                    f"vLLM server exited during startup (exit_code={rc})."
+                )
+            try:
+                resp = client.get(f"{base_url}/models")
+                logging.info("probe status=%s", resp.status_code)
+                if resp.status_code == 200:
+                    logging.info("Server is ready.")
+                    return
+                else:
+                    # logging.warning("Probe got non-200: %s %r", resp.status_code, resp.text[:200])
+                    logging.warning("Probe got non-200: %s", resp.status_code)
+            except httpx.HTTPError as e:
+                logging.warning("Waiting for server: %s: %s", type(e).__name__, e)
+            time.sleep(5.0)
 
 
 def discover_traces(root: Path) -> list[Path]:
@@ -213,6 +273,10 @@ def main():
 
     # Capture GPU topology/status early into a clean text file.
     write_gpu_topo(results_root)
+    # Compact summary table for terminal-friendly download-free results.
+    result_txt = results_root / "result.txt"
+    with open(result_txt, "w", encoding="utf-8") as f:
+        f.write("")
 
     # Suppress verbose HTTP client logs to avoid per-request noise
     logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -249,6 +313,7 @@ def main():
                 shutil.copyfile(config_json, config_4k)
 
             logging.info(f"Bench config={bench.name}: running {len(traces)} trace(s) sequentially...")
+            table_rows: list[list[str]] = []
             for idx, trace in enumerate(traces):
                 rel_name = trace.stem  # filename without extension
                 out_dir = bench_root / rel_name
@@ -260,6 +325,7 @@ def main():
                 logging.info(f"Start trace: {trace}")
                 status = "ok"
                 error_note = ""
+                summary = {}
 
                 # Select per-trace model config + max_model_len
                 extra_server_args = list(bench.extra_server_args)
@@ -322,6 +388,21 @@ def main():
                     write_cdf_csv(ts.batch_sizes, out_dir / "cdf_batch.csv", kind="empirical")
                 except Exception as e:
                     logging.info(f"Failed to write sampler outputs: {e}")
+
+                # Append compact per-trace results for result.txt
+                ttft_p99 = summary.get("ttft", {}).get("p99")
+                tpot_p99 = summary.get("tpot", {}).get("p99")
+                avg_power = _compute_avg_power_w(
+                    ts.power_samples,
+                    start_s=cfg.server.power_avg_start_s,
+                    end_s=cfg.server.power_avg_end_s,
+                )
+                def f4(x):  # noqa: E306
+                    return "-" if x is None else f"{float(x):.4f}"
+                def f1(x):  # noqa: E306
+                    return "-" if x is None else f"{float(x):.1f}"
+                table_rows.append([rel_name, f4(ttft_p99), f4(tpot_p99), f1(avg_power)])
+
                 logging.info(f"End trace: {trace} status={status} {error_note}")
                 # Stop server after each trace (always)
                 server_proc.terminate()
@@ -330,6 +411,16 @@ def main():
                 except subprocess.TimeoutExpired:
                     logging.warning("Server did not exit in time; killing.")
                     server_proc.kill()
+
+            # Write one table per BenchRunConfig into result.txt.
+            title = f"[{bench.name}]"
+            table = _format_table(
+                title,
+                ["trace", "ttft_p99_s", "tpot_p99_s", "avg_power_w"],
+                table_rows,
+            )
+            with open(result_txt, "a", encoding="utf-8") as f:
+                f.write(table + "\n")
 
         logging.info("All bench configurations completed.")
     finally:
