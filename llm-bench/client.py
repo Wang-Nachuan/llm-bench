@@ -235,7 +235,7 @@ async def run_benchmark(args):
     warm_token_unit(model_name)
 
     t0 = time.monotonic()
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(trust_env=False) as client:
         pending: set[asyncio.Task] = set()
         results: List[Dict[str, Any]] = []
         fatal = False

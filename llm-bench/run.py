@@ -191,9 +191,10 @@ class TelemetrySampler(threading.Thread):
             self.power_samples.setdefault(idx, []).append((t_rel, val))
 
     def _sample_batch_size(self) -> None:
-        resp = httpx.get(self.metrics_url, timeout=2.0)
-        resp.raise_for_status()
-        m = self._batch_pat.search(resp.text)
+        with httpx.Client(timeout=2.0, trust_env=False) as client:
+            resp = client.get(self.metrics_url)
+            resp.raise_for_status()
+            m = self._batch_pat.search(resp.text)
         if m:
             self.batch_sizes.append(int(float(m.group(1))))
 
@@ -267,9 +268,16 @@ def main():
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
         handlers=[
-            logging.FileHandler(str(log_path)),
+            logging.FileHandler(str(log_path), mode="w"),
         ],
     )
+    # Always log proxy-related env vars first for debugging on cloud hosts.
+    proxy_keys = [
+        "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+        "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+    ]
+    proxy_env = {k: os.environ.get(k) for k in proxy_keys if os.environ.get(k)}
+    logging.info("proxy_env=%s", proxy_env if proxy_env else {})
 
     # Capture GPU topology/status early into a clean text file.
     write_gpu_topo(results_root)
